@@ -21,13 +21,14 @@ import sys
 from IPy import IP
 from cinderclient.v1 import client as cinder_client
 from cinderclient import exceptions as cinder_exceptions
-import keystoneclient.v3.client as keystone_client
+import keystoneclient.v2_0.client as keystone_client
 import neutronclient.v2_0.client as neutron_client
 import neutronclient.common.exceptions as neutron_exceptions
 import novaclient.v2.client as nova_client
 import novaclient.exceptions as nova_exceptions
 
 import cloudify
+from cloudify import ctx
 from cloudify import context
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
@@ -387,6 +388,10 @@ class OpenStackClient(object):
     REQUIRED_CONFIG_PARAMS = \
         ['username', 'password', 'tenant_name', 'auth_url']
 
+    REQUIRED_CONFIG_PARAMS_SHORT = \
+        ['token', 'auth_url']
+
+
     def get(self, config=None, *args, **kw):
         cfg = Config().get()
         if config:
@@ -403,9 +408,14 @@ class OpenStackClient(object):
             self._raise_missing_config_params_error(missing_config_params)
 
     def _get_missing_config_params(self, cfg):
-        missing_config_params = \
-            [param for param in self.REQUIRED_CONFIG_PARAMS if param not in
-             cfg or not cfg[param]]
+        if 'token' in cfg:
+            missing_config_params = \
+                [param for param in self.REQUIRED_CONFIG_PARAMS_SHORT if param not in
+                 cfg or not cfg[param]]
+        else:
+            missing_config_params = \
+                [param for param in self.REQUIRED_CONFIG_PARAMS if param not in
+                 cfg or not cfg[param]]
         return missing_config_params
 
     def _raise_missing_config_params_error(self, missing_config_params):
@@ -425,11 +435,17 @@ class OpenStackClient(object):
 class KeystoneClient(OpenStackClient):
 
     def connect(self, cfg):
-        client_kwargs = {field: cfg[field] for field in
-                         self.REQUIRED_CONFIG_PARAMS}
+        if 'token' in cfg:
+            client_kwargs = {field: cfg[field] for field in
+                            self.REQUIRED_CONFIG_PARAMS_SHORT}
+        else:
+            client_kwargs = {field: cfg[field] for field in
+                            self.REQUIRED_CONFIG_PARAMS}
 
         client_kwargs.update(
             cfg.get('custom_configuration', {}).get('keystone_client', {}))
+
+        ctx.logger.info(str(client_kwargs))
 
         return keystone_client.Client(**client_kwargs)
 
@@ -440,13 +456,16 @@ class NovaClient(OpenStackClient):
         # note: 'region_name' is required regardless of whether 'bypass_url'
         # is used or not
         client_kwargs = dict(
-            username=cfg['username'],
-            api_key=cfg['password'],
             project_id=cfg['tenant_name'],
             auth_url=cfg['auth_url'],
             region_name=cfg.get('region', ''),
             http_log_debug=False
         )
+        if 'token' in cfg:
+            client_kwargs['auth_token'] = cfg['token']
+        else:
+            client_kwargs['username'] = cfg['username']
+            client_kwargs['api_key'] = cfg['password']
 
         if cfg.get('nova_url'):
             client_kwargs['bypass_url'] = cfg['nova_url']
@@ -468,8 +487,16 @@ class CinderClient(OpenStackClient):
             region_name=cfg.get('region', '')
         )
 
+        if 'token' in cfg:
+            client_kwargs['auth_token'] = cfg['token']
+        else:
+            client_kwargs['username'] = cfg['username']
+            client_kwargs['api_key'] = cfg['password']
+
         client_kwargs.update(
             cfg.get('custom_configuration', {}).get('cinder_client', {}))
+
+        ctx.logger.info(str(client_kwargs))
 
         return CinderClientWithSugar(**client_kwargs)
 
@@ -477,22 +504,36 @@ class CinderClient(OpenStackClient):
 class NeutronClient(OpenStackClient):
 
     def connect(self, cfg):
-        client_kwargs = dict(
-            username=cfg['username'],
-            password=cfg['password'],
-            tenant_name=cfg['tenant_name'],
-            auth_url=cfg['auth_url'],
-        )
-
-        if cfg.get('neutron_url'):
-            client_kwargs['endpoint_url'] = cfg['neutron_url']
+        if 'token' in cfg:
+            keystone =  keystone_client.Client(
+                auth_url=cfg['auth_url'],
+                token=cfg['token'],
+                region_name=cfg.get('region', ''),
+                project_name=cfg['tenant_name'],
+            )
+            endpoint_url = keystone.service_catalog.url_for(service_type='network')
+            keystone_token = keystone.auth_token
+            client_kwargs = {"endpoint_url": endpoint_url, 'token': keystone_token}
+            client_test = NeutronClientWithSugar(**client_kwargs)
+            ctx.logger.info(str(client_test.list_networks()))
+            return client_test
         else:
-            client_kwargs['region_name'] = cfg.get('region', '')
+            client_kwargs = dict(
+                username=cfg['username'],
+                password=cfg['password'],
+                tenant_name=cfg['tenant_name'],
+                auth_url=cfg['auth_url'],
+            )
 
-        client_kwargs.update(
-            cfg.get('custom_configuration', {}).get('neutron_client', {}))
+            if cfg.get('neutron_url'):
+                client_kwargs['endpoint_url'] = cfg['neutron_url']
+            else:
+                client_kwargs['region_name'] = cfg.get('region', '')
 
-        return NeutronClientWithSugar(**client_kwargs)
+            client_kwargs.update(
+                cfg.get('custom_configuration', {}).get('neutron_client', {}))
+
+            return NeutronClientWithSugar(**client_kwargs)
 
 
 # Decorators
@@ -565,18 +606,30 @@ def _put_client_in_kw(client_name, client_class, kw):
     ctx = _find_context_in_kw(kw)
     if ctx.type == context.NODE_INSTANCE:
         config = ctx.node.properties.get('openstack_config')
+        openstack_override = ctx.instance.runtime_properties.get('openstack_override')
     elif ctx.type == context.RELATIONSHIP_INSTANCE:
         config = ctx.source.node.properties.get('openstack_config')
+        openstack_override = ctx.source.instance.runtime_properties.get('openstack_override')
         if not config:
             config = ctx.target.node.properties.get('openstack_config')
+        if not openstack_override:
+            openstack_override = ctx.target.instance.runtime_properties.get('openstack_override')
     else:
         config = None
+        openstack_override = None
     if 'openstack_config' in kw:
         if config:
             config = config.copy()
             config.update(kw['openstack_config'])
         else:
             config = kw['openstack_config']
+    if openstack_override:
+        config.update(openstack_override)
+
+    ctx.logger.info("Config will be used {}".format(
+        str(config)
+    ))
+
     kw[client_name] = client_class().get(config=config)
 
 

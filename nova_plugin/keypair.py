@@ -19,6 +19,7 @@ import platform
 from getpass import getuser
 
 from cloudify import ctx
+from cloudify import context
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError
 from openstack_plugin_common import (
@@ -77,6 +78,12 @@ def create(nova_client, args, **kwargs):
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         KEYPAIR_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = keypair.name
+
+    # save real name of keyfile
+    ctx.instance.runtime_properties["private_key"] = {
+        'path': private_key_path,
+        'key': keypair.private_key
+    }
 
     try:
         # write private key file
@@ -177,6 +184,20 @@ def creation_validation(nova_client, **kwargs):
 
 
 def _get_private_key_path():
+    openstack_override = {}
+    if ctx.type == context.NODE_INSTANCE:
+        openstack_override = ctx.instance.runtime_properties.get('openstack_override')
+    elif ctx.type == context.RELATIONSHIP_INSTANCE:
+        openstack_override = ctx.source.instance.runtime_properties.get('openstack_override')
+        if not openstack_override:
+            openstack_override = ctx.target.instance.runtime_properties.get('openstack_override')
+    ctx.logger.info('keypath: {}/{}'.format(
+        ctx.node.properties[PRIVATE_KEY_PATH_PROP], str(openstack_override)
+    ))
+    if 'tenant_name' in openstack_override:
+        return os.path.expanduser(
+            "~/tenant-keys/" + openstack_override['tenant_name'] + "/" + ctx.node.properties[PRIVATE_KEY_PATH_PROP]
+        )
     return os.path.expanduser(ctx.node.properties[PRIVATE_KEY_PATH_PROP])
 
 

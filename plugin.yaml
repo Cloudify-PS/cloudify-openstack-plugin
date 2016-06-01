@@ -5,7 +5,7 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/1.3.1.zip
+    source: https://github.com/0lvin/cloudify-openstack-plugin/archive/1.4-build.zip
     package_name: cloudify-openstack-plugin
     package_version: '1.3.1'
 
@@ -570,3 +570,7 @@ relationships:
           inputs:
             openstack_config:
               default: {}
+
+workflows:
+    scoreinstall: openstack.openstack_plugin_common.workflows.install
+    scoreuninstall: openstack.openstack_plugin_common.workflows.uninstall
