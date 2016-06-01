@@ -194,7 +194,8 @@ def _get_private_key_path():
     ctx.logger.info('keypath: {}/{}'.format(
         ctx.node.properties[PRIVATE_KEY_PATH_PROP], str(openstack_override)
     ))
-    if 'tenant_name' in openstack_override:
+    # case when we have some override settings
+    if openstack_override and 'tenant_name' in openstack_override:
         return os.path.expanduser(
             "~/tenant-keys/" + openstack_override['tenant_name'] + "/" + ctx.node.properties[PRIVATE_KEY_PATH_PROP]
         )
