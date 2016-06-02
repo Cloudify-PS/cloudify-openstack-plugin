@@ -445,8 +445,6 @@ class KeystoneClient(OpenStackClient):
         client_kwargs.update(
             cfg.get('custom_configuration', {}).get('keystone_client', {}))
 
-        ctx.logger.info(str(client_kwargs))
-
         return keystone_client.Client(**client_kwargs)
 
 
@@ -496,8 +494,6 @@ class CinderClient(OpenStackClient):
         client_kwargs.update(
             cfg.get('custom_configuration', {}).get('cinder_client', {}))
 
-        ctx.logger.info(str(client_kwargs))
-
         return CinderClientWithSugar(**client_kwargs)
 
 
@@ -515,7 +511,6 @@ class NeutronClient(OpenStackClient):
             keystone_token = keystone.auth_token
             client_kwargs = {"endpoint_url": endpoint_url, 'token': keystone_token}
             client_test = NeutronClientWithSugar(**client_kwargs)
-            ctx.logger.info(str(client_test.list_networks()))
             return client_test
         else:
             client_kwargs = dict(

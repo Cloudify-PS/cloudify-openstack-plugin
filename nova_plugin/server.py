@@ -426,6 +426,26 @@ def _set_network_and_ip_runtime_properties(server):
     ctx.instance.runtime_properties[IP_PROPERTY] = manager_network_ip
 
 
+def save_ssh_parameters(ctx, port, ip):
+    """save port and ip for ssh to context"""
+    retries_update = 3
+    update_pending = True
+    while retries_update > 0 and update_pending:
+        retries_update = retries_update - 1
+        try:
+            ctx.source.instance.runtime_properties['ssh_port'] = port
+            ctx.source.instance.runtime_properties['ssh_public_ip'] = ip
+            ctx.source.instance.update()
+            update_pending = False
+        except rest_exceptions.CloudifyClientError as e:
+            if 'conflict' in str(e):
+                # cannot 'return' in contextmanager
+                ctx.logger.info(
+                    "Conflict in updating backend, retrying")
+            else:
+                raise e
+
+
 @operation
 @with_nova_client
 def connect_floatingip(nova_client, fixed_ip, **kwargs):
@@ -454,6 +474,10 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
         return ctx.operation.retry(
                 message='Failed to assign floating ip {0} to machine {1}.'
                         .format(floating_ip_address, server_id))
+
+    ctx.logger.info("-->" + str(floating_ip_address))
+    # for score script plugin
+    save_ssh_parameters(ctx, 22, floating_ip_address)
 
 
 @operation

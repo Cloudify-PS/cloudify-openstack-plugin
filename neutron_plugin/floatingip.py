@@ -86,10 +86,6 @@ def connect_port(neutron_client, **kwargs):
         OPENSTACK_ID_PROPERTY]
     fip = {'port_id': port_id}
     neutron_client.update_floatingip(floating_ip_id, {'floatingip': fip})
-    ctx.logger.info("-->".str((
-        ctx.target.node.properties.get('floatingip').get(PUBLIC_IP),
-        ctx.source.instance.runtime_properties
-    )))
 
 
 @operation

@@ -191,9 +191,6 @@ def _get_private_key_path():
         openstack_override = ctx.source.instance.runtime_properties.get('openstack_override')
         if not openstack_override:
             openstack_override = ctx.target.instance.runtime_properties.get('openstack_override')
-    ctx.logger.info('keypath: {}/{}'.format(
-        ctx.node.properties[PRIVATE_KEY_PATH_PROP], str(openstack_override)
-    ))
     # case when we have some override settings
     if openstack_override and 'tenant_name' in openstack_override:
         return os.path.expanduser(
