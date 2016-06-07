@@ -39,9 +39,7 @@ def update(ctx, instance, token, keystore_url, region, tenant_name):
         storage.update_node_instance(node_id, version, rt_properties, state)
     else:
         update_node_instance(node_instance)
-    ctx.logger.info("Will be used {}".format(
-        str(rt_properties)
-    ))
+
 
 def _get_all_nodes_instances(ctx, token, keystore_url, region, tenant_name):
     """return all instances from context nodes"""

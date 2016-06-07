@@ -241,12 +241,6 @@ def server_connect_to_keypair(**kwargs):
     if PRIVATE_KEY in target_rt_properties:
         host_rt_properties[SSH_KEY][PATH] = target_rt_properties[PRIVATE_KEY].get(PATH)
         host_rt_properties[SSH_KEY][KEY] = target_rt_properties[PRIVATE_KEY].get(KEY)
-    if PUBLIC_KEY in target_rt_properties:
-        host_rt_properties[SSH_KEY][USER] = target_rt_properties[PUBLIC_KEY].get(USER)
-    if CLOUDIFY_AGENT not in host_rt_properties:
-        host_rt_properties[CLOUDIFY_AGENT] = {}
-    if target_rt_properties[PRIVATE_KEY].get(PATH):
-        host_rt_properties[CLOUDIFY_AGENT][KEY] = target_rt_properties[PRIVATE_KEY].get(PATH)
     ctx.source.instance.update()
 
 
