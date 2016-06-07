@@ -25,6 +25,7 @@ from cloudify import ctx
 from cloudify.manager import get_rest_client
 from cloudify.decorators import operation
 from cloudify.exceptions import NonRecoverableError, RecoverableError
+from cloudify_rest_client import exceptions as rest_exceptions
 from cinder_plugin import volume
 from openstack_plugin_common import (
     provider,

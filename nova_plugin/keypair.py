@@ -42,6 +42,14 @@ KEYPAIR_OPENSTACK_TYPE = 'keypair'
 
 PRIVATE_KEY_PATH_PROP = 'private_key_path'
 
+CLOUDIFY_AGENT = 'cloudify_agent'
+PRIVATE_KEY = 'private_key'
+PUBLIC_KEY = 'public_key'
+SSH_KEY = 'ssh_key'
+USER = 'user'
+PATH = 'path'
+KEY = 'key'
+
 
 @operation
 @with_nova_client
@@ -69,20 +77,20 @@ def create(nova_client, args, **kwargs):
     keypair = {
         'name': get_resource_id(ctx, KEYPAIR_OPENSTACK_TYPE),
     }
-    keypair.update(ctx.node.properties['keypair'], **args)
+    keypair.update(ctx.node.properties[KEYPAIR_OPENSTACK_TYPE], **args)
     transform_resource_name(ctx, keypair)
 
     keypair = nova_client.keypairs.create(keypair['name'],
-                                          keypair.get('public_key'))
+                                          keypair.get(PUBLIC_KEY))
     ctx.instance.runtime_properties[OPENSTACK_ID_PROPERTY] = keypair.id
     ctx.instance.runtime_properties[OPENSTACK_TYPE_PROPERTY] = \
         KEYPAIR_OPENSTACK_TYPE
     ctx.instance.runtime_properties[OPENSTACK_NAME_PROPERTY] = keypair.name
 
     # save real name of keyfile
-    ctx.instance.runtime_properties["private_key"] = {
-        'path': private_key_path,
-        'key': keypair.private_key
+    ctx.instance.runtime_properties[PRIVATE_KEY] = {
+        PATH: private_key_path,
+        KEY: keypair.private_key
     }
 
     try:
@@ -223,3 +231,28 @@ def _mkdir_p(path):
         if e.errno == errno.EEXIST and os.path.isdir(path):
             return
         raise
+
+@operation
+def server_connect_to_keypair(**kwargs):
+    host_rt_properties = ctx.source.instance.runtime_properties
+    target_rt_properties = ctx.target.instance.runtime_properties
+    if SSH_KEY not in host_rt_properties:
+        host_rt_properties[SSH_KEY] = {}
+    if PRIVATE_KEY in target_rt_properties:
+        host_rt_properties[SSH_KEY][PATH] = target_rt_properties[PRIVATE_KEY].get(PATH)
+        host_rt_properties[SSH_KEY][KEY] = target_rt_properties[PRIVATE_KEY].get(KEY)
+    if PUBLIC_KEY in target_rt_properties:
+        host_rt_properties[SSH_KEY][USER] = target_rt_properties[PUBLIC_KEY].get(USER)
+    if target_rt_properties[PRIVATE_KEY].get(PATH):
+        host_rt_properties[CLOUDIFY_AGENT] = {}
+        host_rt_properties[CLOUDIFY_AGENT][KEY] = target_rt_properties[PRIVATE_KEY].get(PATH)
+    ctx.source.instance.update()
+
+
+@operation
+def server_disconnect_from_keypair(**kwargs):
+    host_rt_properties = ctx.source.instance.runtime_properties
+    if SSH_KEY in host_rt_properties:
+        del host_rt_properties[SSH_KEY]
+    if CLOUDIFY_AGENT in host_rt_properties:
+        del host_rt_properties[CLOUDIFY_AGENT]

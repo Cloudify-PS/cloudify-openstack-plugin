@@ -552,6 +552,14 @@ relationships:
 
   cloudify.openstack.server_connected_to_keypair:
     derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+     cloudify.interfaces.relationship_lifecycle:
+       postconfigure:
+         implementation: openstack.nova_plugin.keypair.server_connect_to_keypair
+         inputs: {}
+       unlink:
+         implementation: openstack.nova_plugin.keypair.server_disconnect_from_keypair
+         inputs: {}
 
   cloudify.openstack.port_connected_to_subnet:
     derived_from: cloudify.relationships.connected_to

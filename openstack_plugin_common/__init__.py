@@ -621,10 +621,6 @@ def _put_client_in_kw(client_name, client_class, kw):
     if openstack_override:
         config.update(openstack_override)
 
-    ctx.logger.info("Config will be used {}".format(
-        str(config)
-    ))
-
     kw[client_name] = client_class().get(config=config)
 
 
