@@ -13,6 +13,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 
+import hashlib
 import os
 import errno
 import platform
@@ -201,8 +202,13 @@ def _get_private_key_path():
             openstack_override = ctx.target.instance.runtime_properties.get('openstack_override')
     # case when we have some override settings
     if openstack_override and 'tenant_name' in openstack_override:
+        # use hash for encode/security reason
+        name_hash = openstack_override['tenant_name'] + "/" + hashlib.sha224(
+            ctx.node.properties[PRIVATE_KEY_PATH_PROP]
+        ).hexdigest()
+
         return os.path.expanduser(
-            "~/tenant-keys/" + openstack_override['tenant_name'] + "/" + ctx.node.properties[PRIVATE_KEY_PATH_PROP]
+            "~/tenant-keys/" + name_hash
         )
     return os.path.expanduser(ctx.node.properties[PRIVATE_KEY_PATH_PROP])
 
