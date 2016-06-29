@@ -476,7 +476,7 @@ def connect_floatingip(nova_client, fixed_ip, **kwargs):
                 message='Failed to assign floating ip {0} to machine {1}.'
                         .format(floating_ip_address, server_id))
 
-    # for score script plugin
+    # for walle script plugin
     save_ssh_parameters(ctx, 22, floating_ip_address)
 
 

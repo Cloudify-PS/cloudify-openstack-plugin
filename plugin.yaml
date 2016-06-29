@@ -7,7 +7,7 @@ plugins:
     executor: central_deployment_agent
     source: https://github.com/0lvin/cloudify-openstack-plugin/archive/1.4-build.zip
     package_name: cloudify-openstack-plugin
-    package_version: '1.4score'
+    package_version: '1.4walle'
 
 node_types:
   cloudify.openstack.nodes.Server:
@@ -580,5 +580,5 @@ relationships:
               default: {}
 
 workflows:
-    scoreinstall: openstack.openstack_plugin_common.workflows.install
-    scoreuninstall: openstack.openstack_plugin_common.workflows.uninstall
+    walleinstall: openstack.openstack_plugin_common.workflows.install
+    walleuninstall: openstack.openstack_plugin_common.workflows.uninstall
