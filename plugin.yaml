@@ -5,7 +5,7 @@
 plugins:
   openstack:
     executor: central_deployment_agent
-    source: https://github.com/0lvin/cloudify-openstack-plugin/archive/1.4-build.zip
+    source: https://github.com/Cloudify-PS/cloudify-openstack-plugin/archive/1.4-walle.zip
     package_name: cloudify-openstack-plugin
     package_version: '1.4walle'
 
