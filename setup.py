@@ -39,6 +39,7 @@ setup(
         'python-neutronclient==6.0.0',
         'python-cinderclient==1.9.0',
         'python-glanceclient==2.5.0',
+        'keystoneauth1==2.12.1',
         'IPy==0.81'
     ]
 )
