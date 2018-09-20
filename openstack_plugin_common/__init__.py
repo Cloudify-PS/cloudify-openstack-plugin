@@ -376,7 +376,7 @@ def validate_ip_or_range_syntax(ctx, address, is_range=True):
 class Config(object):
 
     OPENSTACK_CONFIG_PATH_ENV_VAR = 'OPENSTACK_CONFIG_PATH'
-    OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config.json'
+    OPENSTACK_CONFIG_PATH_DEFAULT_PATH = '~/openstack_config_121.json'
     OPENSTACK_ENV_VAR_PREFIX = 'OS_'
     OPENSTACK_SUPPORTED_ENV_VARS = {
         'OS_AUTH_URL', 'OS_USERNAME', 'OS_PASSWORD', 'OS_TENANT_NAME',
@@ -423,16 +423,35 @@ class OpenStackClient(object):
     ]
     OPTIONAL_AUTH_PARAMS = {'insecure'}
 
+    NON_AUTH_ITEMS = ['region', 'insecure',
+                      'ca_cert', 'nova_url',
+                      'neutron_url', 'custom_configuration']
+
+
     def __init__(self, client_name, client_class, config=None, *args, **kw):
         cfg = Config.get()
-        v3 = '/v3' in config['auth_url']
+        Config.update_config(cfg, config)
 
-        if config:
-            region = config.pop('region', None)
-            if v3 and region:
-                config['region_name'] = region
-            Config.update_config(cfg, config)
+
+        # Check if there is any value exists on ``cfg``
+        # that does not exist on ``config`` then these extra params
+        # should be removed to prevent any merging conflicts
+        removed_keys = []
+        for k, v in cfg.iteritems():
+            if k in self.NON_AUTH_ITEMS:
+                removed_keys.append(k)
+
+        for key in removed_keys:
+            del cfg[key]
+
+        v3 = '/v3' in cfg['auth_url']
+        # Newer libraries expect the region key to be `region_name`, not
+        # `region`.
+        region = cfg.pop('region', None)
+        if v3 and region:
+            cfg['region_name'] = region
         cfg = self._merge_custom_configuration(cfg, client_name)
+
 
         auth_params, client_params = OpenStackClient._split_config(cfg)
         OpenStackClient._validate_auth_params(auth_params)
@@ -631,6 +650,8 @@ def with_neutron_client(f):
         _put_client_in_kw('neutron_client', NeutronClientWithSugar, kw)
 
         try:
+            if not kw.get('args'):
+                kw['args'] = {}
             return f(*args, **kw)
         except neutron_exceptions.NeutronClientException, e:
             if e.status_code in _non_recoverable_error_codes:
@@ -646,6 +667,8 @@ def with_nova_client(f):
         _put_client_in_kw('nova_client', NovaClientWithSugar, kw)
 
         try:
+            if not kw.get('args'):
+                kw['args'] = {}
             return f(*args, **kw)
         except nova_exceptions.OverLimit, e:
             _re_raise(e, recoverable=True, retry_after=e.retry_after)
@@ -663,6 +686,8 @@ def with_cinder_client(f):
         _put_client_in_kw('cinder_client', CinderClientWithSugar, kw)
 
         try:
+            if not kw.get('args'):
+                kw['args'] = {}
             return f(*args, **kw)
         except cinder_exceptions.ClientException, e:
             if e.code in _non_recoverable_error_codes:
